@@ -2,8 +2,8 @@ name: Sync develop from smartcontractkit/chainlink
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
-  workflow_dispatch:  # Allows manual trigger
+    - cron: "*/30 * * * *" # Runs every 30 minutes
+  workflow_dispatch: # Allows manual trigger
 
 permissions:
   contents: write
@@ -12,14 +12,15 @@ jobs:
   sync:
     name: Sync
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: develop
           token: ${{ secrets.GITHUB_TOKEN }}
         if: github.repository != 'smartcontractkit/chainlink'
-      
+
       - name: Sync with upstream
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -27,19 +28,20 @@ jobs:
           # Configure git to use the token for authentication
           git config --global credential.helper store
           echo "https://x-access-token:${GITHUB_TOKEN}@github.com" > ~/.git-credentials
-          
+
           # Add upstream remote
           git remote add upstream "https://github.com/smartcontractkit/chainlink.git"
-          
+
           # Get commit hashes
           COMMIT_HASH_UPSTREAM=$(git ls-remote upstream develop | grep -E '^[0-9a-f]{40}\trefs/heads/develop$' | cut -f 1)
           COMMIT_HASH_ORIGIN=$(git ls-remote origin develop | grep -E '^[0-9a-f]{40}\trefs/heads/develop$' | cut -f 1)
-          
+
           if [ "$COMMIT_HASH_UPSTREAM" = "$COMMIT_HASH_ORIGIN" ]; then
             echo "Both remotes have develop at $COMMIT_HASH_UPSTREAM. No need to sync."
           else
             echo "upstream has develop at $COMMIT_HASH_UPSTREAM. origin has develop at $COMMIT_HASH_ORIGIN. Syncing..."
             git fetch upstream
+
             # Push using the authenticated URL
             git push "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" upstream/develop:develop
           fi
