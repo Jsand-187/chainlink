@@ -18,15 +18,9 @@ permissions:
   checks: read
   pull-requests: read
 
-permissions:
-  id-token: write
-  contents: read
-  actions: read
-  checks: read
-  pull-requests: read
-
 jobs:
   in-memory-tests:
+    if: github.repository == 'smartcontractkit/chainlink'
     uses: ./.github/workflows/integration-in-memory-tests.yml
     with:
       chainlink_version: ${{ inputs.chainlink_version || 'develop' }}
