@@ -1,84 +1,99 @@
-filter:
-  name: Detect Changes
-  permissions:
-    pull-actions: read
-    contents: read
-  outputs:
-    should-run: >-
-      ${{
-        steps.match-some.outputs.workflow == 'true' ||
-        steps.match-some.outputs.deployment == 'true' ||
-        steps.match-every.outputs.core-non-ignored == 'true' ||
-        github.event_name == 'schedule' ||
-        github.event_name == 'workflow_dispatch'
-      }}
-  runs-on: ubuntu-latest
-  steps:
-    - name: Checkout the repo
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0  # Fetch all history so we can find the commit
-        # Don't specify 'repository' - it will use the current repo (your fork)
+name: Deployment Change Detection
+
+on:
+  push:
+    branches:
+      - develop
+      - ci/public-ecr-integration
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  filter:
+    name: Detect Changes
+    permissions:
+      pull-requests: read
+      contents: read
+    outputs:
+      should-run: >-
+        ${{
+          steps.match-some.outputs.workflow == 'true' ||
+          steps.match-some.outputs.deployment == 'true' ||
+          steps.match-every.outputs.core-non-ignored == 'true' ||
+          github.event_name == 'schedule' ||
+          github.event_name == 'workflow_dispatch'
+        }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history so we can find the commit
+          # Don't specify 'repository' - it will use the current repo (your fork)
     
-    - uses: dorny/paths-filter@v3
-      id: match-some
-      with:
-        predicate-quantifier: some
-        filters: |
-          deployment:
-            - 'deployment/**'
-          workflow:
-            - '.github/workflows/ci-deployments.yml'
-            - '.github/actions/**'
+      - uses: dorny/paths-filter@v3
+        id: match-some
+        with:
+          predicate-quantifier: some
+          filters: |
+            deployment:
+              - 'deployment/**'
+            workflow:
+              - '.github/workflows/ci-deployments.yml'
+              - '.github/actions/**'
     
-    - uses: dorny/paths-filter@v3
-      id: match-every
-      with:
-        predicate-quantifier: every
-        list-files: json
-        filters: |
-          core-non-ignored:
-            - '**'
-            - '!deployment/**'
-            - '!integration-tests/**'
-            - '!tools/secrets/**'
-            - '!tools/docker/**'
-            - '!tools/benchmark/**'
-            - '!**/README.md'
-            - '!**/CHANGELOG.md'
-            - '!*.nix'
-            - '!sonar-project.properties'
-            - '!nix.conf'
-            - '!nix-darwin-shell-hook.sh'
-            - '!LICENSE'
-            - '!.github/**'
-            - '!core/scripts/cre/environment/examples/workflows/**'
-          all:
-            - '**'
+      - uses: dorny/paths-filter@v3
+        id: match-every
+        with:
+          predicate-quantifier: every
+          list-files: json
+          filters: |
+            core-non-ignored:
+              - '**'
+              - '!deployment/**'
+              - '!integration-tests/**'
+              - '!tools/secrets/**'
+              - '!tools/docker/**'
+              - '!tools/benchmark/**'
+              - '!**/README.md'
+              - '!**/CHANGELOG.md'
+              - '!*.nix'
+              - '!sonar-project.properties'
+              - '!nix.conf'
+              - '!nix-darwin-shell-hook.sh'
+              - '!LICENSE'
+              - '!.github/**'
+              - '!core/scripts/cre/environment/examples/workflows/**'
+            all:
+              - '**'
     
-    - name: Decide which tests to run
-      id: triggers
-      uses: smartcontractkit/.github/actions/advanced-triggers@advanced-triggers/v1
-      continue-on-error: true
-      with:
-        file-sets: |
-          included-files:
-            - "**/*.go"
-            - "**/go.mod"
-            - "**/go.sum"
-            - "core/**"
-            - "deployment/**"
-            - ".github/workflows/ci-deployments.yml"
-            - ".github/actions/**"
-            - "tools/bin/go_deployment_tests"
-          excluded-files:
-            - "testdata/**"
-            - "core/**/testdata/**"
-            - "core/**/*_test.go"
-            - "system-tests/**"
-            - "integration-tests/**"
-            - "core/scripts/cre/environment/examples/workflows/**"
-        triggers: |
-          deployment-tests:
-            exclusion-sets: [ excluded-files ]
-            inclusion-sets: [ included-files ]
+      - name: Decide which tests to run
+        id: triggers
+        uses: smartcontractkit/.github/actions/advanced-triggers@advanced-triggers/v1
+        continue-on-error: true
+        with:
+          file-sets: |
+            included-files:
+              - "**/*.go"
+              - "**/go.mod"
+              - "**/go.sum"
+              - "core/**"
+              - "deployment/**"
+              - ".github/workflows/ci-deployments.yml"
+              - ".github/actions/**"
+              - "tools/bin/go_deployment_tests"
+            excluded-files:
+              - "testdata/**"
+              - "core/**/testdata/**"
+              - "core/**/*_test.go"
+              - "system-tests/**"
+              - "integration-tests/**"
+              - "core/scripts/cre/environment/examples/workflows/**"
+          triggers: |
+            deployment-tests:
+              exclusion-sets: [ excluded-files ]
+              inclusion-sets: [ included-files ]
